@@ -3,16 +3,13 @@ use std::fmt::{Debug, Error, Formatter};
 /// Node represents a node in abstract syntax tree
 pub struct Node<T> {
     /// line info: (begin_line, end_line)
-    lineinfo: (u32, u32),
+    // lineinfo: (u32, u32),
     inner: T,
 }
 
 impl<T> Node<T> {
-    pub fn new(inner: T, lineinfo: (u32, u32)) -> Node<T> {
-        Node {
-            lineinfo,
-            inner,
-        }
+    pub fn new(inner: T) -> Node<T> {
+        Node { inner }
     }
 
     pub fn inner(&self) -> &T {
@@ -23,22 +20,22 @@ impl<T> Node<T> {
         &mut self.inner
     }
 
-    pub fn lineinfo(&self) -> (u32, u32) {
-        self.lineinfo
-    }
+    // pub fn lineinfo(&self) -> (u32, u32) {
+    //     self.lineinfo
+    // }
 
-    pub fn line(&self) -> u32 {
-        self.lineinfo.0
-    }
+    // pub fn line(&self) -> u32 {
+    //     self.lineinfo.0
+    // }
 
-    pub fn last_line(&self) -> u32 {
-        self.lineinfo.1
-    }
+    // pub fn last_line(&self) -> u32 {
+    //     self.lineinfo.1
+    // }
 }
 
 impl<T: Debug> Debug for Node<T> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "<{}:{}> {:#?}", self.lineinfo.0, self.lineinfo.1, self.inner)
+        write!(f, "{:#?}", self.inner)
     }
 }
 
@@ -113,7 +110,9 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new(key: Option<ExprNode>, val: ExprNode) -> Field { Field { key, val } }
+    pub fn new(key: Option<ExprNode>, val: ExprNode) -> Field {
+        Field { key, val }
+    }
 }
 
 #[derive(Debug)]
@@ -241,7 +240,13 @@ pub struct NumberFor {
 }
 
 impl NumberFor {
-    pub fn new(name: String, init: ExprNode, limit: ExprNode, step: ExprNode, stmts: Vec<StmtNode>) -> Box<NumberFor> {
+    pub fn new(
+        name: String,
+        init: ExprNode,
+        limit: ExprNode,
+        step: ExprNode,
+        stmts: Vec<StmtNode>,
+    ) -> Box<NumberFor> {
         Box::new(NumberFor {
             name,
             init,

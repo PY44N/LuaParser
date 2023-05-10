@@ -4,9 +4,11 @@ use lua::state::State;
 
 fn main() {
     let mut state = State::new();
-    let result = state.load_file("_testdata/simple.lua");
+    let result = state.parse_file("test.lua");
     match result {
-        Ok(_) => {}
-        Err(e) => println!("Error=>{:?}", e)
+        Ok(ast) => {
+            println!("{:?}", ast);
+        }
+        Err(e) => println!("Error=>{:?}", e),
     };
 }

@@ -83,7 +83,7 @@ impl ToString for Token {
                     Token::LE => "<=",
                     Token::NE => "~=",
                     Token::EOF => "<eof>",
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 s.to_string()
             }
@@ -133,8 +133,8 @@ impl<R: Read> Scanner<R> {
                 INIT => self.advance(),
                 ' ' => self.advance(),
                 '\t' => self.advance(),
-                '\u{013}' => self.advance(),/*vertical tab character*/
-                '\u{014}' => self.advance(),/*form feed*/
+                '\u{013}' => self.advance(), /*vertical tab character*/
+                '\u{014}' => self.advance(), /*form feed*/
                 '\r' | '\n' => self.incr_line_number(),
                 '-' => {
                     self.advance();
@@ -165,7 +165,9 @@ impl<R: Read> Scanner<R> {
                     if sep == -1 {
                         return Ok(Token::Char('['));
                     }
-                    return Err(Error::LexicalError("invalid long string delimiter".to_string()));
+                    return Err(Error::LexicalError(
+                        "invalid long string delimiter".to_string(),
+                    ));
                 }
                 '=' => {
                     self.advance();
@@ -239,10 +241,8 @@ impl<R: Read> Scanner<R> {
 
     fn advance(&mut self) {
         let c: char = match self.reader.fill_buf() {
-            Ok(ref buf) if buf.len() > 0 => {
-                buf[0] as char
-            }
-            _ => EOF
+            Ok(ref buf) if buf.len() > 0 => buf[0] as char,
+            _ => EOF,
         };
 
         if c != EOF {
@@ -254,7 +254,7 @@ impl<R: Read> Scanner<R> {
 
     fn save(&mut self, c: char) {
         self.buffer.reserve(1);
-        self.buffer.put(c as u8)
+        self.buffer.put(Option::Some([c as u8]))
     }
 
     fn save_and_advance(&mut self) {
@@ -327,7 +327,9 @@ impl<R: Read> Scanner<R> {
                         self.save_and_advance();
                         if !is_comment {
                             let buf_len = self.buffer.len();
-                            ret = String::from_utf8(self.buffer[(2 + sep) as usize..(buf_len - 2)].to_vec())?;
+                            ret = String::from_utf8(
+                                self.buffer[(2 + sep) as usize..(buf_len - 2)].to_vec(),
+                            )?;
                         }
                         self.buffer.clear();
                         return Ok(ret);
@@ -357,7 +359,9 @@ impl<R: Read> Scanner<R> {
         self.advance();
         while self.current != delimiter {
             match self.current {
-                EOF | '\n' | '\r' => return Err(Error::LexicalError("unfinished string".to_string())),
+                EOF | '\n' | '\r' => {
+                    return Err(Error::LexicalError("unfinished string".to_string()))
+                }
                 '\\' => {
                     self.advance();
                     let current = self.current;
@@ -394,7 +398,9 @@ impl<R: Read> Scanner<R> {
                         }
                         _ => {
                             if !is_decimal(current) {
-                                return Err(Error::LexicalError("invalid escape sequence".to_string()));
+                                return Err(Error::LexicalError(
+                                    "invalid escape sequence".to_string(),
+                                ));
                             }
                             let dec_esc = self.read_decimal_escape()?;
                             self.save(dec_esc);
@@ -427,7 +433,11 @@ impl<R: Read> Scanner<R> {
                 _ if '0' <= c && c <= '9' => cvalue = cvalue - ('0' as u8),
                 _ if 'a' <= c && c <= 'z' => cvalue = cvalue - ('a' as u8) + 10,
                 _ if 'A' <= c && c <= 'z' => cvalue = cvalue - ('A' as u8) + 10,
-                _ => return Err(Error::LexicalError("hexadecimal digit expected".to_string()))
+                _ => {
+                    return Err(Error::LexicalError(
+                        "hexadecimal digit expected".to_string(),
+                    ))
+                }
             }
 
             self.advance();
@@ -451,7 +461,7 @@ impl<R: Read> Scanner<R> {
                 _ if '0' <= c && c <= '9' => cvalue = cvalue - ('0' as u32),
                 _ if 'a' <= c && c <= 'z' => cvalue = cvalue - ('a' as u32) + 10,
                 _ if 'A' <= c && c <= 'z' => cvalue = cvalue - ('A' as u32) + 10,
-                _ => break
+                _ => break,
             }
             self.advance();
             n = n * 16.0 + (cvalue as f64);
@@ -543,7 +553,7 @@ impl<R: Read> Scanner<R> {
                 let digits = self.buf_string()?;
                 let number = match digits.parse::<isize>() {
                     Ok(number) => number,
-                    _ => return Err(Error::LexicalError("malformed number".to_string()))
+                    _ => return Err(Error::LexicalError("malformed number".to_string())),
                 };
 
                 exponent = if negative_exp {
@@ -582,7 +592,7 @@ impl<R: Read> Scanner<R> {
 
         let number = match s.parse::<f64>() {
             Ok(n) => n,
-            _ => return Err(Error::LexicalError("malformed number".to_string()))
+            _ => return Err(Error::LexicalError("malformed number".to_string())),
         };
 
         self.buffer.clear();

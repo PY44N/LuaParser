@@ -1,9 +1,8 @@
+use crate::ast::{Node, Stmt};
+use crate::Result;
 use crate::{parser, undump};
-use crate::{Result};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor, Read};
-
-
 
 use crate::compiler;
 
@@ -52,11 +51,19 @@ impl State {
         } else {
             let mut parser = parser::Parser::new(reader, name.to_string());
             let stmts = parser.parse()?;
-            compiler::compile(stmts, name.to_string())?
+            // compiler::compile(stmts, name.to_string())?
         };
 
         // TODO: save chunk
 
         Ok(())
+    }
+
+    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Node<Stmt>>> {
+        let f = File::open(path)?;
+        let reader = BufReader::new(f);
+
+        let mut parser = parser::Parser::new(reader, path.to_string());
+        parser.parse()
     }
 }
