@@ -1,8 +1,8 @@
-use crate::ast::{Node, Stmt};
+use crate::ast::Stmt;
+use crate::parser;
 use crate::Result;
-use crate::{parser};
 use std::fs::File;
-use std::io::{BufReader};
+use std::io::BufReader;
 
 /// A State is an opaque structure representing per thread Lua state.
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl State {
         State {}
     }
 
-    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Node<Stmt>>> {
+    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Stmt>> {
         let f = File::open(path)?;
         let reader = BufReader::new(f);
 

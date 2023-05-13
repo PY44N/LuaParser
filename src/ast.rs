@@ -1,43 +1,4 @@
-use std::fmt::{Debug, Error, Formatter};
-
-/// Node represents a node in abstract syntax tree
-pub struct Node<T> {
-    /// line info: (begin_line, end_line)
-    // lineinfo: (u32, u32),
-    inner: T,
-}
-
-impl<T> Node<T> {
-    pub fn new(inner: T) -> Node<T> {
-        Node { inner }
-    }
-
-    pub fn inner(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn inner_mut(&mut self) -> &mut T {
-        &mut self.inner
-    }
-
-    // pub fn lineinfo(&self) -> (u32, u32) {
-    //     self.lineinfo
-    // }
-
-    // pub fn line(&self) -> u32 {
-    //     self.lineinfo.0
-    // }
-
-    // pub fn last_line(&self) -> u32 {
-    //     self.lineinfo.1
-    // }
-}
-
-impl<T: Debug> Debug for Node<T> {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "{:#?}", self.inner)
-    }
-}
+use std::fmt::Debug;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BinaryOpr {
@@ -78,19 +39,19 @@ pub enum Expr {
     Ident(String),
 
     /// AttrGet(Object, Key)
-    AttrGet(Box<ExprNode>, Box<ExprNode>),
+    AttrGet(Box<Expr>, Box<Expr>),
     Table(Vec<Field>),
     FuncCall(Box<FuncCall>),
     MethodCall(Box<MethodCall>),
 
     /// BinaryOp(Operator, Lhs, Rhs)
-    BinaryOp(BinaryOpr, Box<ExprNode>, Box<ExprNode>),
+    BinaryOp(BinaryOpr, Box<Expr>, Box<Expr>),
 
     /// UnaryOp(Operator, expr)
-    UnaryOp(UnaryOpr, Box<ExprNode>),
+    UnaryOp(UnaryOpr, Box<Expr>),
 
     /// Function(ParList, Stmts)
-    Function(ParList, Vec<StmtNode>),
+    Function(ParList, Vec<Stmt>),
 }
 
 impl Expr {
@@ -105,12 +66,12 @@ impl Expr {
 
 #[derive(Debug)]
 pub struct Field {
-    pub key: Option<ExprNode>,
-    pub val: ExprNode,
+    pub key: Option<Expr>,
+    pub val: Expr,
 }
 
 impl Field {
-    pub fn new(key: Option<ExprNode>, val: ExprNode) -> Field {
+    pub fn new(key: Option<Expr>, val: Expr) -> Field {
         Field { key, val }
     }
 }
@@ -144,12 +105,12 @@ impl ParList {
 
 #[derive(Debug)]
 pub struct FuncDef {
-    pub name: Vec<ExprNode>,
-    pub body: Vec<ExprNode>,
+    pub name: Vec<Expr>,
+    pub body: Vec<Expr>,
 }
 
 impl FuncDef {
-    pub fn new(name: ExprNode, body: ExprNode) -> Box<FuncDef> {
+    pub fn new(name: Expr, body: Expr) -> Box<FuncDef> {
         // TODO: refactor this
         Box::new(FuncDef {
             name: vec![name],
@@ -160,13 +121,13 @@ impl FuncDef {
 
 #[derive(Debug)]
 pub struct MethodDef {
-    pub receiver: ExprNode,
+    pub receiver: Expr,
     pub method: String,
-    pub body: ExprNode,
+    pub body: Expr,
 }
 
 impl MethodDef {
-    pub fn new(receiver: ExprNode, method: String, body: ExprNode) -> Box<MethodDef> {
+    pub fn new(receiver: Expr, method: String, body: Expr) -> Box<MethodDef> {
         Box::new(MethodDef {
             receiver,
             method,
@@ -177,13 +138,13 @@ impl MethodDef {
 
 #[derive(Debug)]
 pub struct MethodCall {
-    pub receiver: ExprNode,
+    pub receiver: Expr,
     pub method: String,
-    pub args: Vec<ExprNode>,
+    pub args: Vec<Expr>,
 }
 
 impl MethodCall {
-    pub fn new(receiver: ExprNode, method: String, args: Vec<ExprNode>) -> MethodCall {
+    pub fn new(receiver: Expr, method: String, args: Vec<Expr>) -> MethodCall {
         MethodCall {
             receiver,
             method,
@@ -194,13 +155,13 @@ impl MethodCall {
 
 #[derive(Debug)]
 pub struct FuncCall {
-    pub func: ExprNode,
-    pub args: Vec<ExprNode>,
+    pub func: Expr,
+    pub args: Vec<Expr>,
     pub adj: bool,
 }
 
 impl FuncCall {
-    pub fn new(func: ExprNode, args: Vec<ExprNode>) -> FuncCall {
+    pub fn new(func: Expr, args: Vec<Expr>) -> FuncCall {
         FuncCall {
             func,
             args,
@@ -211,13 +172,13 @@ impl FuncCall {
 
 #[derive(Debug)]
 pub struct IfThenElse {
-    pub condition: ExprNode,
-    pub then: Vec<StmtNode>,
-    pub els: Vec<StmtNode>,
+    pub condition: Expr,
+    pub then: Vec<Stmt>,
+    pub els: Vec<Stmt>,
 }
 
 impl IfThenElse {
-    pub fn new(condition: ExprNode, then: Vec<StmtNode>, els: Vec<StmtNode>) -> IfThenElse {
+    pub fn new(condition: Expr, then: Vec<Stmt>, els: Vec<Stmt>) -> IfThenElse {
         IfThenElse {
             condition,
             then,
@@ -225,7 +186,7 @@ impl IfThenElse {
         }
     }
 
-    pub fn set_els(&mut self, els: Vec<StmtNode>) {
+    pub fn set_els(&mut self, els: Vec<Stmt>) {
         self.els = els;
     }
 }
@@ -233,19 +194,19 @@ impl IfThenElse {
 #[derive(Debug)]
 pub struct NumberFor {
     pub name: String,
-    pub init: ExprNode,
-    pub limit: ExprNode,
-    pub step: ExprNode,
-    pub stmts: Vec<StmtNode>,
+    pub init: Expr,
+    pub limit: Expr,
+    pub step: Expr,
+    pub stmts: Vec<Stmt>,
 }
 
 impl NumberFor {
     pub fn new(
         name: String,
-        init: ExprNode,
-        limit: ExprNode,
-        step: ExprNode,
-        stmts: Vec<StmtNode>,
+        init: Expr,
+        limit: Expr,
+        step: Expr,
+        stmts: Vec<Stmt>,
     ) -> Box<NumberFor> {
         Box::new(NumberFor {
             name,
@@ -260,12 +221,12 @@ impl NumberFor {
 #[derive(Debug)]
 pub struct GenericFor {
     pub names: Vec<String>,
-    pub exprs: Vec<ExprNode>,
-    pub stmts: Vec<StmtNode>,
+    pub exprs: Vec<Expr>,
+    pub stmts: Vec<Stmt>,
 }
 
 impl GenericFor {
-    pub fn new(names: Vec<String>, exprs: Vec<ExprNode>, stmts: Vec<StmtNode>) -> Box<GenericFor> {
+    pub fn new(names: Vec<String>, exprs: Vec<Expr>, stmts: Vec<Stmt>) -> Box<GenericFor> {
         Box::new(GenericFor {
             names,
             exprs,
@@ -277,27 +238,24 @@ impl GenericFor {
 #[derive(Debug)]
 pub enum Stmt {
     /// Assign(Lhs, Rhs)
-    Assign(Vec<ExprNode>, Vec<ExprNode>),
+    Assign(Vec<Expr>, Vec<Expr>),
 
     /// LocalAssign(Names, Exprs)
-    LocalAssign(Vec<String>, Vec<ExprNode>),
-    FuncCall(ExprNode),
-    MethodCall(ExprNode),
-    DoBlock(Vec<StmtNode>),
+    LocalAssign(Vec<String>, Vec<Expr>),
+    FuncCall(Expr),
+    MethodCall(Expr),
+    DoBlock(Vec<Stmt>),
 
     /// While(Condition, Stmts)
-    While(ExprNode, Vec<StmtNode>),
+    While(Expr, Vec<Stmt>),
 
     /// Repeat(Condition, Stmts)
-    Repeat(ExprNode, Vec<StmtNode>),
+    Repeat(Expr, Vec<Stmt>),
     If(IfThenElse),
     NumberFor(Box<NumberFor>),
     GenericFor(Box<GenericFor>),
     FuncDef(Box<FuncDef>),
     MethodDef(Box<MethodDef>),
-    Return(Vec<ExprNode>),
+    Return(Vec<Expr>),
     Break,
 }
-
-pub type StmtNode = Node<Stmt>;
-pub type ExprNode = Node<Expr>;

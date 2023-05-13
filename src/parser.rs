@@ -127,7 +127,7 @@ impl<R: Read> Parser<R> {
     ///
     ///	unop ::= `-´ | not | `#´
     /// ```
-    pub fn parse(&mut self) -> Result<Vec<StmtNode>> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
         self.next()?;
         let stmts = self.block()?;
         self.check(Token::EOF)?;
@@ -162,8 +162,8 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn block(&mut self) -> Result<Vec<StmtNode>> {
-        let mut stmts: Vec<StmtNode> = vec![];
+    fn block(&mut self) -> Result<Vec<Stmt>> {
+        let mut stmts: Vec<Stmt> = vec![];
         loop {
             if self.block_follow() {
                 break;
@@ -182,7 +182,7 @@ impl<R: Read> Parser<R> {
         Ok(false)
     }
 
-    fn statement(&mut self) -> Result<StmtNode> {
+    fn statement(&mut self) -> Result<Stmt> {
         loop {
             match self.token {
                 Token::Char(char) if char == ';' => self.next()?,
@@ -215,7 +215,7 @@ impl<R: Read> Parser<R> {
             Token::Break => self.breakstat()?,
             _ => self.exprstat()?,
         };
-        Ok(StmtNode::new(stmt))
+        Ok(stmt)
     }
 
     fn field(&mut self) -> Result<Field> {
@@ -237,7 +237,7 @@ impl<R: Read> Parser<R> {
                         unreachable!()
                     };
                     self.next()?;
-                    ExprNode::new(Expr::String(s.to_string()))
+                    Expr::String(s.to_string())
                 } else {
                     self.expression()?
                 };
@@ -256,7 +256,7 @@ impl<R: Read> Parser<R> {
         Ok(field)
     }
 
-    fn constructor(&mut self) -> Result<ExprNode> {
+    fn constructor(&mut self) -> Result<Expr> {
         debug_assert!(self.token == Token::Char('{'));
         let mut fields: Vec<Field> = vec![];
         self.next()?;
@@ -269,8 +269,8 @@ impl<R: Read> Parser<R> {
             }
         }
         self.check_next(Token::Char('}'))?;
-        let exprnode = ExprNode::new(Expr::Table(fields));
-        Ok(exprnode)
+        let Expr = Expr::Table(fields);
+        Ok(Expr)
     }
 
     /// ```BNF
@@ -292,7 +292,7 @@ impl<R: Read> Parser<R> {
         Ok(names)
     }
 
-    fn exprlist(&mut self) -> Result<Vec<ExprNode>> {
+    fn exprlist(&mut self) -> Result<Vec<Expr>> {
         let mut exprs = vec![self.expression()?];
         while self.testnext(&Token::Char(','))? {
             let expr = self.expression()?;
@@ -301,7 +301,7 @@ impl<R: Read> Parser<R> {
         Ok(exprs)
     }
 
-    fn funcbody(&mut self) -> Result<ExprNode> {
+    fn funcbody(&mut self) -> Result<Expr> {
         // paramater list
         self.check_next(Token::Char('('))?;
         let mut parlist = ParList::new();
@@ -318,11 +318,11 @@ impl<R: Read> Parser<R> {
         let block = self.block()?;
         self.check_next(Token::End)?;
 
-        let exprnode = ExprNode::new(Expr::Function(parlist, block));
-        Ok(exprnode)
+        let Expr = Expr::Function(parlist, block);
+        Ok(Expr)
     }
 
-    fn function(&mut self) -> Result<ExprNode> {
+    fn function(&mut self) -> Result<Expr> {
         debug_assert!(self.token == Token::Function);
         self.next()?;
         self.funcbody()
@@ -333,17 +333,17 @@ impl<R: Read> Parser<R> {
     /// ```BNF
     /// prefixexp -> NAME | '(' expr ')'
     /// ```
-    fn prefixexp(&mut self) -> Result<ExprNode> {
+    fn prefixexp(&mut self) -> Result<Expr> {
         let expr = match self.token {
             Token::Ident(ref s) => {
-                let expr = ExprNode::new(Expr::Ident(s.clone()));
+                let expr = Expr::Ident(s.clone());
                 expr
             }
             Token::Char('(') => {
                 self.next()?;
                 let _line = self.line_number;
                 let mut expr = self.expression()?;
-                match expr.inner_mut() {
+                match expr {
                     Expr::FuncCall(ref mut call) => call.adj = true,
                     _ => {}
                 }
@@ -356,7 +356,7 @@ impl<R: Read> Parser<R> {
         Ok(expr)
     }
 
-    fn fnargs(&mut self) -> Result<Vec<ExprNode>> {
+    fn fnargs(&mut self) -> Result<Vec<Expr>> {
         let mut next = false;
         let expr = match self.token {
             Token::Char('(') => {
@@ -374,7 +374,7 @@ impl<R: Read> Parser<R> {
             Token::Char('{') => vec![self.constructor()?],
             Token::String(ref s) => {
                 next = true;
-                let expr = ExprNode::new(Expr::String(s.clone()));
+                let expr = Expr::String(s.clone());
                 vec![expr]
             }
             _ => {
@@ -395,15 +395,15 @@ impl<R: Read> Parser<R> {
     /// primaryexp ->
     /// prefixexp { '.' NAME | '[' exp `]' | ':' NAME funcargs | funcargs }
     /// ```
-    fn primaryexp(&mut self) -> Result<ExprNode> {
-        let mut exprnode = self.prefixexp()?;
+    fn primaryexp(&mut self) -> Result<Expr> {
+        let mut Expr = self.prefixexp()?;
         loop {
             let expr = match self.token {
                 Token::Char('.') => {
                     self.next()?;
                     let obj = if let Token::Ident(ref s) = self.token {
-                        let key = ExprNode::new(Expr::String(s.clone()));
-                        let obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
+                        let key = Expr::String(s.clone());
+                        let obj = Expr::AttrGet(Box::new(Expr), Box::new(key));
                         obj
                     } else {
                         return Err(self.unexpected(&self.token));
@@ -414,7 +414,7 @@ impl<R: Read> Parser<R> {
                 Token::Char('[') => {
                     self.next()?;
                     let key = self.expression()?;
-                    let obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
+                    let obj = Expr::AttrGet(Box::new(Expr), Box::new(key));
                     self.check_next(Token::Char(']'))?;
                     obj
                 }
@@ -427,19 +427,19 @@ impl<R: Read> Parser<R> {
                     };
                     self.next()?;
                     let args = self.fnargs()?;
-                    let call = MethodCall::new(exprnode, method, args);
+                    let call = MethodCall::new(Expr, method, args);
                     Expr::MethodCall(Box::new(call))
                 }
                 Token::Char('(') | Token::String(_) | Token::Char('{') => {
                     let args = self.fnargs()?;
-                    let call = FuncCall::new(exprnode, args);
+                    let call = FuncCall::new(Expr, args);
                     Expr::FuncCall(Box::new(call))
                 }
                 _ => {
-                    return Ok(exprnode);
+                    return Ok(Expr);
                 }
             };
-            exprnode = ExprNode::new(expr)
+            Expr = expr
         }
     }
 
@@ -449,14 +449,14 @@ impl<R: Read> Parser<R> {
     /// simpleexp -> NUMBER | STRING | NIL | true | false | ... |
     /// constructor | FUNCTION body | primaryexp
     /// ```
-    fn simple_expr(&mut self) -> Result<ExprNode> {
+    fn simple_expr(&mut self) -> Result<Expr> {
         let node = match self.token {
-            Token::True => ExprNode::new(Expr::True),
-            Token::False => ExprNode::new(Expr::False),
-            Token::Nil => ExprNode::new(Expr::Nil),
-            Token::Number(n) => ExprNode::new(Expr::Number(n)),
-            Token::Dots => ExprNode::new(Expr::Dots),
-            Token::String(ref s) => ExprNode::new(Expr::String(s.clone())),
+            Token::True => Expr::True,
+            Token::False => Expr::False,
+            Token::Nil => Expr::Nil,
+            Token::Number(n) => Expr::Number(n),
+            Token::Dots => Expr::Dots,
+            Token::String(ref s) => Expr::String(s.clone()),
             Token::Char(c) if c == '{' => return Ok(self.constructor()?),
             Token::Function => return Ok(self.function()?),
             _ => return Ok(self.primaryexp()?),
@@ -465,12 +465,12 @@ impl<R: Read> Parser<R> {
         Ok(node)
     }
 
-    fn sub_expression(&mut self, limit: u8) -> Result<(ExprNode, BinaryOpr)> {
+    fn sub_expression(&mut self, limit: u8) -> Result<(Expr, BinaryOpr)> {
         let op = unary_op(&self.token);
         let mut expr = if op != UnaryOpr::NoUnary {
             self.next()?;
             let sub = self.sub_expression(UNARY_PRIORITY)?.0;
-            ExprNode::new(Expr::UnaryOp(op, Box::new(sub)))
+            Expr::UnaryOp(op, Box::new(sub))
         } else {
             self.simple_expr()?
         };
@@ -482,13 +482,13 @@ impl<R: Read> Parser<R> {
             }
             self.next()?;
             let sub = self.sub_expression(BINARY_PRIORITY[op as usize].0)?;
-            expr = ExprNode::new(Expr::BinaryOp(op, Box::new(expr), Box::new(sub.0)));
+            expr = Expr::BinaryOp(op, Box::new(expr), Box::new(sub.0));
             op = sub.1;
         }
         Ok((expr, op))
     }
 
-    fn expression(&mut self) -> Result<ExprNode> {
+    fn expression(&mut self) -> Result<Expr> {
         Ok(self.sub_expression(0)?.0)
     }
 
@@ -520,11 +520,11 @@ impl<R: Read> Parser<R> {
 
         // link all elseif
         for elseif in elseifs.into_iter().rev().into_iter() {
-            let mut e: Vec<Node<Stmt>> = vec![];
+            let mut e: Vec<Stmt> = vec![];
             mem::swap(&mut e, &mut els);
             let mut elif = elseif;
             elif.set_els(e);
-            els.push(StmtNode::new(Stmt::If(elif)));
+            els.push(Stmt::If(elif));
         }
         self.check_match(Token::End, Token::If, line)?;
         ifthen.set_els(els);
@@ -545,7 +545,7 @@ impl<R: Read> Parser<R> {
         Ok(Stmt::While(cond, stmts))
     }
 
-    fn forbody(&mut self) -> Result<Vec<StmtNode>> {
+    fn forbody(&mut self) -> Result<Vec<Stmt>> {
         self.check_next(Token::Do)?;
         self.block()
     }
@@ -559,7 +559,7 @@ impl<R: Read> Parser<R> {
         let step = if self.testnext(&Token::Char(','))? {
             self.expression()?
         } else {
-            ExprNode::new(Expr::Number(1.0))
+            Expr::Number(1.0)
         };
 
         let body = self.forbody()?;
@@ -629,12 +629,12 @@ impl<R: Read> Parser<R> {
             return Err(self.unexpected(&self.token));
         };
         self.next()?;
-        let mut nameexpr = ExprNode::new(name);
+        let mut nameexpr = name;
         while self.testnext(&Token::Char('.'))? {
             if let Token::Ident(ref s) = self.token {
-                let key = ExprNode::new(Expr::String(s.clone()));
+                let key = Expr::String(s.clone());
                 let obj = Expr::AttrGet(Box::new(nameexpr), Box::new(key));
-                nameexpr = ExprNode::new(obj);
+                nameexpr = obj;
             } else {
                 return Err(self.unexpected(&self.token));
             }
@@ -698,9 +698,9 @@ impl<R: Read> Parser<R> {
     /// ```
     fn exprstat(&mut self) -> Result<Stmt> {
         let expr = self.primaryexp()?;
-        let stmt = match expr.inner() {
-            &Expr::FuncCall(_) => Stmt::FuncCall(expr),
-            &Expr::MethodCall(_) => Stmt::MethodCall(expr),
+        let stmt = match expr {
+            Expr::FuncCall(_) => Stmt::FuncCall(expr),
+            Expr::MethodCall(_) => Stmt::MethodCall(expr),
             _ => {
                 let mut lhs = vec![expr];
                 while self.testnext(&Token::Char(','))? {
