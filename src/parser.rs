@@ -15,33 +15,33 @@ static BINARY_PRIORITY: &'static [(u8, u8)/*(left, right)*/; 15] = &[
 
 const UNARY_PRIORITY: u8 = 8;
 
-pub fn unary_op(t: &Token) -> UnaryOpr {
+pub fn unary_op(t: &Token) -> UnaryOperator {
     match *t {
-        Token::Not => UnaryOpr::Not,
-        Token::Char(c) if c == '-' => UnaryOpr::Minus,
-        Token::Char(c) if c == '#' => UnaryOpr::Length,
-        _ => UnaryOpr::NoUnary,
+        Token::Not => UnaryOperator::Not,
+        Token::Char(c) if c == '-' => UnaryOperator::Minus,
+        Token::Char(c) if c == '#' => UnaryOperator::Length,
+        _ => UnaryOperator::NoUnary,
     }
 }
 
-pub fn binary_op(t: &Token) -> BinaryOpr {
+pub fn binary_op(t: &Token) -> BinaryOperator {
     match *t {
-        Token::Char(c) if c == '+' => BinaryOpr::Add,
-        Token::Char(c) if c == '-' => BinaryOpr::Sub,
-        Token::Char(c) if c == '*' => BinaryOpr::Mul,
-        Token::Char(c) if c == '/' => BinaryOpr::Div,
-        Token::Char(c) if c == '%' => BinaryOpr::Mod,
-        Token::Char(c) if c == '^' => BinaryOpr::Pow,
-        Token::Concat => BinaryOpr::Concat,
-        Token::NE => BinaryOpr::NE,
-        Token::Eq => BinaryOpr::Eq,
-        Token::Char(c) if c == '<' => BinaryOpr::LT,
-        Token::LE => BinaryOpr::LE,
-        Token::Char(c) if c == '>' => BinaryOpr::GT,
-        Token::GE => BinaryOpr::GE,
-        Token::And => BinaryOpr::And,
-        Token::Or => BinaryOpr::Or,
-        _ => BinaryOpr::NoBinary,
+        Token::Char(c) if c == '+' => BinaryOperator::Add,
+        Token::Char(c) if c == '-' => BinaryOperator::Sub,
+        Token::Char(c) if c == '*' => BinaryOperator::Mul,
+        Token::Char(c) if c == '/' => BinaryOperator::Div,
+        Token::Char(c) if c == '%' => BinaryOperator::Mod,
+        Token::Char(c) if c == '^' => BinaryOperator::Pow,
+        Token::Concat => BinaryOperator::Concat,
+        Token::NE => BinaryOperator::NE,
+        Token::Eq => BinaryOperator::Eq,
+        Token::Char(c) if c == '<' => BinaryOperator::LT,
+        Token::LE => BinaryOperator::LE,
+        Token::Char(c) if c == '>' => BinaryOperator::GT,
+        Token::GE => BinaryOperator::GE,
+        Token::And => BinaryOperator::And,
+        Token::Or => BinaryOperator::Or,
+        _ => BinaryOperator::NoBinary,
     }
 }
 
@@ -127,7 +127,7 @@ impl<R: Read> Parser<R> {
     ///
     ///	unop ::= `-´ | not | `#´
     /// ```
-    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
+    pub fn parse(&mut self) -> Result<Vec<Statement>> {
         self.next()?;
         let stmts = self.block()?;
         self.check(Token::EOF)?;
@@ -162,8 +162,8 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>> {
-        let mut stmts: Vec<Stmt> = vec![];
+    fn block(&mut self) -> Result<Vec<Statement>> {
+        let mut stmts: Vec<Statement> = vec![];
         loop {
             if self.block_follow() {
                 break;
@@ -182,7 +182,7 @@ impl<R: Read> Parser<R> {
         Ok(false)
     }
 
-    fn statement(&mut self) -> Result<Stmt> {
+    fn statement(&mut self) -> Result<Statement> {
         loop {
             match self.token {
                 Token::Char(char) if char == ';' => self.next()?,
@@ -198,7 +198,7 @@ impl<R: Read> Parser<R> {
                 self.next()?;
                 let stmts = self.block()?;
                 self.check_match(Token::End, Token::Do, line)?;
-                Stmt::DoBlock(stmts)
+                Statement::DoBlock(stmts)
             }
             Token::For => self.forstat()?,
             Token::Repeat => self.repeatstat()?,
@@ -237,7 +237,7 @@ impl<R: Read> Parser<R> {
                         unreachable!()
                     };
                     self.next()?;
-                    Expr::String(s.to_string())
+                    Expression::String(s.to_string())
                 } else {
                     self.expression()?
                 };
@@ -256,7 +256,7 @@ impl<R: Read> Parser<R> {
         Ok(field)
     }
 
-    fn constructor(&mut self) -> Result<Expr> {
+    fn constructor(&mut self) -> Result<Expression> {
         debug_assert!(self.token == Token::Char('{'));
         let mut fields: Vec<Field> = vec![];
         self.next()?;
@@ -269,8 +269,7 @@ impl<R: Read> Parser<R> {
             }
         }
         self.check_next(Token::Char('}'))?;
-        let Expr = Expr::Table(fields);
-        Ok(Expr)
+        Ok(Expression::Table(fields))
     }
 
     /// ```BNF
@@ -292,7 +291,7 @@ impl<R: Read> Parser<R> {
         Ok(names)
     }
 
-    fn exprlist(&mut self) -> Result<Vec<Expr>> {
+    fn exprlist(&mut self) -> Result<Vec<Expression>> {
         let mut exprs = vec![self.expression()?];
         while self.testnext(&Token::Char(','))? {
             let expr = self.expression()?;
@@ -301,10 +300,10 @@ impl<R: Read> Parser<R> {
         Ok(exprs)
     }
 
-    fn funcbody(&mut self) -> Result<Expr> {
+    fn funcbody(&mut self) -> Result<Expression> {
         // paramater list
         self.check_next(Token::Char('('))?;
-        let mut parlist = ParList::new();
+        let mut parlist = ParameterList::new();
         if let Token::Ident(_) = self.token {
             let names = self.namelist()?;
             parlist.set_names(names);
@@ -318,11 +317,10 @@ impl<R: Read> Parser<R> {
         let block = self.block()?;
         self.check_next(Token::End)?;
 
-        let Expr = Expr::Function(parlist, block);
-        Ok(Expr)
+        Ok(Expression::Function(parlist, block))
     }
 
-    fn function(&mut self) -> Result<Expr> {
+    fn function(&mut self) -> Result<Expression> {
         debug_assert!(self.token == Token::Function);
         self.next()?;
         self.funcbody()
@@ -333,10 +331,10 @@ impl<R: Read> Parser<R> {
     /// ```BNF
     /// prefixexp -> NAME | '(' expr ')'
     /// ```
-    fn prefixexp(&mut self) -> Result<Expr> {
+    fn prefixexp(&mut self) -> Result<Expression> {
         let expr = match self.token {
             Token::Ident(ref s) => {
-                let expr = Expr::Ident(s.clone());
+                let expr = Expression::Ident(s.clone());
                 expr
             }
             Token::Char('(') => {
@@ -344,7 +342,7 @@ impl<R: Read> Parser<R> {
                 let _line = self.line_number;
                 let mut expr = self.expression()?;
                 match expr {
-                    Expr::FuncCall(ref mut call) => call.adj = true,
+                    Expression::FuncCall(ref mut call) => call.adj = true,
                     _ => {}
                 }
                 self.check(Token::Char(')'))?;
@@ -356,7 +354,7 @@ impl<R: Read> Parser<R> {
         Ok(expr)
     }
 
-    fn fnargs(&mut self) -> Result<Vec<Expr>> {
+    fn fnargs(&mut self) -> Result<Vec<Expression>> {
         let mut next = false;
         let expr = match self.token {
             Token::Char('(') => {
@@ -374,7 +372,7 @@ impl<R: Read> Parser<R> {
             Token::Char('{') => vec![self.constructor()?],
             Token::String(ref s) => {
                 next = true;
-                let expr = Expr::String(s.clone());
+                let expr = Expression::String(s.clone());
                 vec![expr]
             }
             _ => {
@@ -395,15 +393,15 @@ impl<R: Read> Parser<R> {
     /// primaryexp ->
     /// prefixexp { '.' NAME | '[' exp `]' | ':' NAME funcargs | funcargs }
     /// ```
-    fn primaryexp(&mut self) -> Result<Expr> {
-        let mut Expr = self.prefixexp()?;
+    fn primaryexp(&mut self) -> Result<Expression> {
+        let mut expression = self.prefixexp()?;
         loop {
             let expr = match self.token {
                 Token::Char('.') => {
                     self.next()?;
                     let obj = if let Token::Ident(ref s) = self.token {
-                        let key = Expr::String(s.clone());
-                        let obj = Expr::AttrGet(Box::new(Expr), Box::new(key));
+                        let key = Expression::String(s.clone());
+                        let obj = Expression::AttrGet(Box::new(expression), Box::new(key));
                         obj
                     } else {
                         return Err(self.unexpected(&self.token));
@@ -414,7 +412,7 @@ impl<R: Read> Parser<R> {
                 Token::Char('[') => {
                     self.next()?;
                     let key = self.expression()?;
-                    let obj = Expr::AttrGet(Box::new(Expr), Box::new(key));
+                    let obj = Expression::AttrGet(Box::new(expression), Box::new(key));
                     self.check_next(Token::Char(']'))?;
                     obj
                 }
@@ -427,19 +425,19 @@ impl<R: Read> Parser<R> {
                     };
                     self.next()?;
                     let args = self.fnargs()?;
-                    let call = MethodCall::new(Expr, method, args);
-                    Expr::MethodCall(Box::new(call))
+                    let call = MethodCall::new(expression, method, args);
+                    Expression::MethodCall(Box::new(call))
                 }
                 Token::Char('(') | Token::String(_) | Token::Char('{') => {
                     let args = self.fnargs()?;
-                    let call = FuncCall::new(Expr, args);
-                    Expr::FuncCall(Box::new(call))
+                    let call = FunctionCall::new(expression, args);
+                    Expression::FuncCall(Box::new(call))
                 }
                 _ => {
-                    return Ok(Expr);
+                    return Ok(expression);
                 }
             };
-            Expr = expr
+            expression = expr
         }
     }
 
@@ -449,14 +447,14 @@ impl<R: Read> Parser<R> {
     /// simpleexp -> NUMBER | STRING | NIL | true | false | ... |
     /// constructor | FUNCTION body | primaryexp
     /// ```
-    fn simple_expr(&mut self) -> Result<Expr> {
+    fn simple_expr(&mut self) -> Result<Expression> {
         let node = match self.token {
-            Token::True => Expr::True,
-            Token::False => Expr::False,
-            Token::Nil => Expr::Nil,
-            Token::Number(n) => Expr::Number(n),
-            Token::Dots => Expr::Dots,
-            Token::String(ref s) => Expr::String(s.clone()),
+            Token::True => Expression::True,
+            Token::False => Expression::False,
+            Token::Nil => Expression::Nil,
+            Token::Number(n) => Expression::Number(n),
+            Token::Dots => Expression::Dots,
+            Token::String(ref s) => Expression::String(s.clone()),
             Token::Char(c) if c == '{' => return Ok(self.constructor()?),
             Token::Function => return Ok(self.function()?),
             _ => return Ok(self.primaryexp()?),
@@ -465,30 +463,30 @@ impl<R: Read> Parser<R> {
         Ok(node)
     }
 
-    fn sub_expression(&mut self, limit: u8) -> Result<(Expr, BinaryOpr)> {
+    fn sub_expression(&mut self, limit: u8) -> Result<(Expression, BinaryOperator)> {
         let op = unary_op(&self.token);
-        let mut expr = if op != UnaryOpr::NoUnary {
+        let mut expr = if op != UnaryOperator::NoUnary {
             self.next()?;
             let sub = self.sub_expression(UNARY_PRIORITY)?.0;
-            Expr::UnaryOp(op, Box::new(sub))
+            Expression::UnaryOp(op, Box::new(sub))
         } else {
             self.simple_expr()?
         };
 
         let mut op = binary_op(&self.token);
         loop {
-            if op == BinaryOpr::NoBinary || BINARY_PRIORITY[op as usize].1 <= limit {
+            if op == BinaryOperator::NoBinary || BINARY_PRIORITY[op as usize].1 <= limit {
                 break;
             }
             self.next()?;
             let sub = self.sub_expression(BINARY_PRIORITY[op as usize].0)?;
-            expr = Expr::BinaryOp(op, Box::new(expr), Box::new(sub.0));
+            expr = Expression::BinaryOp(op, Box::new(expr), Box::new(sub.0));
             op = sub.1;
         }
         Ok((expr, op))
     }
 
-    fn expression(&mut self) -> Result<Expr> {
+    fn expression(&mut self) -> Result<Expression> {
         Ok(self.sub_expression(0)?.0)
     }
 
@@ -502,7 +500,7 @@ impl<R: Read> Parser<R> {
     }
 
     /// ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END
-    fn ifstat(&mut self) -> Result<Stmt> {
+    fn ifstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::If);
         let line = self.line_number;
         let mut ifthen = self.test_then_block()?;
@@ -520,21 +518,21 @@ impl<R: Read> Parser<R> {
 
         // link all elseif
         for elseif in elseifs.into_iter().rev().into_iter() {
-            let mut e: Vec<Stmt> = vec![];
+            let mut e: Vec<Statement> = vec![];
             mem::swap(&mut e, &mut els);
             let mut elif = elseif;
             elif.set_els(e);
-            els.push(Stmt::If(elif));
+            els.push(Statement::If(elif));
         }
         self.check_match(Token::End, Token::If, line)?;
         ifthen.set_els(els);
-        Ok(Stmt::If(ifthen))
+        Ok(Statement::If(ifthen))
     }
 
     /// ```BNF
     /// whilestat -> WHILE cond DO block END
     /// ```
-    fn whilestat(&mut self) -> Result<Stmt> {
+    fn whilestat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::While);
         let line = self.line_number;
         self.next()?; // skip WHILE
@@ -542,15 +540,15 @@ impl<R: Read> Parser<R> {
         self.check_next(Token::Do)?;
         let stmts = self.block()?;
         self.check_match(Token::End, Token::While, line)?;
-        Ok(Stmt::While(cond, stmts))
+        Ok(Statement::While(cond, stmts))
     }
 
-    fn forbody(&mut self) -> Result<Vec<Stmt>> {
+    fn forbody(&mut self) -> Result<Vec<Statement>> {
         self.check_next(Token::Do)?;
         self.block()
     }
 
-    fn fornum(&mut self, varname: String) -> Result<Stmt> {
+    fn fornum(&mut self, varname: String) -> Result<Statement> {
         self.check_next(Token::Char('='))?;
         let init = self.expression()?;
         self.check_next(Token::Char(','))?;
@@ -559,15 +557,15 @@ impl<R: Read> Parser<R> {
         let step = if self.testnext(&Token::Char(','))? {
             self.expression()?
         } else {
-            Expr::Number(1.0)
+            Expression::Number(1.0)
         };
 
         let body = self.forbody()?;
-        let stmt = Stmt::NumberFor(NumberFor::new(varname, init, limit, step, body));
+        let stmt = Statement::NumberFor(NumberFor::new(varname, init, limit, step, body));
         Ok(stmt)
     }
 
-    fn forlist(&mut self, indexname: String) -> Result<Stmt> {
+    fn forlist(&mut self, indexname: String) -> Result<Statement> {
         let mut names = vec![indexname];
         while self.testnext(&Token::Char(','))? {
             if let Token::Ident(ref s) = self.token {
@@ -580,14 +578,14 @@ impl<R: Read> Parser<R> {
         self.check_next(Token::In)?;
         let exprs = self.exprlist()?;
         let body = self.forbody()?;
-        let stmt = Stmt::GenericFor(GenericFor::new(names, exprs, body));
+        let stmt = Statement::GenericFor(GenericFor::new(names, exprs, body));
         Ok(stmt)
     }
 
     /// ```BNF
     /// forstat -> FOR (fornum | forlist) END
     /// ```
-    fn forstat(&mut self) -> Result<Stmt> {
+    fn forstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::For);
         let line = self.line_number;
         self.next()?; // skip FOR
@@ -609,22 +607,22 @@ impl<R: Read> Parser<R> {
     /// ```BNF
     /// repeatstat -> REPEAT block UNTIL cond
     /// ```
-    fn repeatstat(&mut self) -> Result<Stmt> {
+    fn repeatstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::Repeat);
         let line = self.line_number;
         self.next()?; // skip REPEAT
         let stmts = self.block()?;
         self.check_match(Token::Until, Token::Repeat, line)?;
         let cond = self.expression()?;
-        Ok(Stmt::Repeat(cond, stmts))
+        Ok(Statement::Repeat(cond, stmts))
     }
 
-    fn funcstat(&mut self) -> Result<Stmt> {
+    fn funcstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::Function);
         self.next()?; // skip FUNCTION
                       // funcname
         let name = if let Token::Ident(ref s) = self.token {
-            Expr::Ident(s.clone())
+            Expression::Ident(s.clone())
         } else {
             return Err(self.unexpected(&self.token));
         };
@@ -632,8 +630,8 @@ impl<R: Read> Parser<R> {
         let mut nameexpr = name;
         while self.testnext(&Token::Char('.'))? {
             if let Token::Ident(ref s) = self.token {
-                let key = Expr::String(s.clone());
-                let obj = Expr::AttrGet(Box::new(nameexpr), Box::new(key));
+                let key = Expression::String(s.clone());
+                let obj = Expression::AttrGet(Box::new(nameexpr), Box::new(key));
                 nameexpr = obj;
             } else {
                 return Err(self.unexpected(&self.token));
@@ -656,18 +654,18 @@ impl<R: Read> Parser<R> {
         let body = self.funcbody()?;
         let stmt = match method {
             Some(m) => {
-                let def = MethodDef::new(nameexpr, m, body);
-                Stmt::MethodDef(def)
+                let def = MethodDefinition::new(nameexpr, m, body);
+                Statement::MethodDef(def)
             }
             None => {
-                let def = FuncDef::new(nameexpr, body);
-                Stmt::FuncDef(def)
+                let def = FunctionDefinition::new(nameexpr, body);
+                Statement::FuncDef(def)
             }
         };
         Ok(stmt)
     }
 
-    fn localfunc(&mut self) -> Result<Stmt> {
+    fn localfunc(&mut self) -> Result<Statement> {
         let name = if let Token::Ident(ref s) = self.token {
             s.clone()
         } else {
@@ -675,32 +673,32 @@ impl<R: Read> Parser<R> {
         };
         self.next()?;
         let body = self.funcbody()?;
-        let stmt = Stmt::LocalAssign(vec![name], vec![body]);
+        let stmt = Statement::LocalAssign(vec![name], vec![body]);
         Ok(stmt)
     }
 
     /// ```BNF
     /// stat -> LOCAL NAME {`,' NAME} [`=' explist1]
     /// ```
-    fn localstat(&mut self) -> Result<Stmt> {
+    fn localstat(&mut self) -> Result<Statement> {
         let namelist = self.namelist()?;
         let exprlist = if self.testnext(&Token::Char('='))? {
             self.exprlist()?
         } else {
             vec![]
         };
-        let stmt = Stmt::LocalAssign(namelist, exprlist);
+        let stmt = Statement::LocalAssign(namelist, exprlist);
         Ok(stmt)
     }
 
     /// ```BNF
     /// stat -> func | assignment
     /// ```
-    fn exprstat(&mut self) -> Result<Stmt> {
+    fn exprstat(&mut self) -> Result<Statement> {
         let expr = self.primaryexp()?;
         let stmt = match expr {
-            Expr::FuncCall(_) => Stmt::FuncCall(expr),
-            Expr::MethodCall(_) => Stmt::MethodCall(expr),
+            Expression::FuncCall(_) => Statement::FuncCall(expr),
+            Expression::MethodCall(_) => Statement::MethodCall(expr),
             _ => {
                 let mut lhs = vec![expr];
                 while self.testnext(&Token::Char(','))? {
@@ -708,20 +706,20 @@ impl<R: Read> Parser<R> {
                 }
                 self.check_next(Token::Char('='))?;
                 let rhs = self.exprlist()?;
-                Stmt::Assign(lhs, rhs)
+                Statement::Assign(lhs, rhs)
             }
         };
         Ok(stmt)
     }
 
-    fn breakstat(&mut self) -> Result<Stmt> {
+    fn breakstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::Break);
         self.next()?; // skip BREAK
-        let stmt = Stmt::Break;
+        let stmt = Statement::Break;
         Ok(stmt)
     }
 
-    fn retstat(&mut self) -> Result<Stmt> {
+    fn retstat(&mut self) -> Result<Statement> {
         debug_assert!(self.token == Token::Return);
         self.next()?; // skip RETURE
         let exprlist = if self.block_follow() || self.token == Token::Char(';') {
@@ -729,7 +727,7 @@ impl<R: Read> Parser<R> {
         } else {
             self.exprlist()?
         };
-        let stmt = Stmt::Return(exprlist);
+        let stmt = Statement::Return(exprlist);
         Ok(stmt)
     }
 

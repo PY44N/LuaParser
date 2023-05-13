@@ -1,4 +1,4 @@
-use crate::ast::Stmt;
+use crate::ast::Statement;
 use crate::parser;
 use crate::Result;
 use std::fs::File;
@@ -22,7 +22,7 @@ impl State {
         State {}
     }
 
-    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Stmt>> {
+    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Statement>> {
         let f = File::open(path)?;
         let reader = BufReader::new(f);
 

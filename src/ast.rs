@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum BinaryOpr {
+pub enum BinaryOperator {
     Add = 0,
     Sub,
     Mul,
@@ -21,7 +21,7 @@ pub enum BinaryOpr {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnaryOpr {
+pub enum UnaryOperator {
     Minus,
     Not,
     Length,
@@ -29,7 +29,7 @@ pub enum UnaryOpr {
 }
 
 #[derive(Debug)]
-pub enum Expr {
+pub enum Expression {
     True,
     False,
     Nil,
@@ -39,26 +39,26 @@ pub enum Expr {
     Ident(String),
 
     /// AttrGet(Object, Key)
-    AttrGet(Box<Expr>, Box<Expr>),
+    AttrGet(Box<Expression>, Box<Expression>),
     Table(Vec<Field>),
-    FuncCall(Box<FuncCall>),
+    FuncCall(Box<FunctionCall>),
     MethodCall(Box<MethodCall>),
 
     /// BinaryOp(Operator, Lhs, Rhs)
-    BinaryOp(BinaryOpr, Box<Expr>, Box<Expr>),
+    BinaryOp(BinaryOperator, Box<Expression>, Box<Expression>),
 
     /// UnaryOp(Operator, expr)
-    UnaryOp(UnaryOpr, Box<Expr>),
+    UnaryOp(UnaryOperator, Box<Expression>),
 
     /// Function(ParList, Stmts)
-    Function(ParList, Vec<Stmt>),
+    Function(ParameterList, Vec<Statement>),
 }
 
-impl Expr {
+impl Expression {
     pub fn is_vararg(&self) -> bool {
         match self {
-            &Expr::Dots => true,
-            &Expr::FuncCall(ref call) => !call.adj,
+            &Expression::Dots => true,
+            &Expression::FuncCall(ref call) => !call.adj,
             _ => false,
         }
     }
@@ -66,25 +66,25 @@ impl Expr {
 
 #[derive(Debug)]
 pub struct Field {
-    pub key: Option<Expr>,
-    pub val: Expr,
+    pub key: Option<Expression>,
+    pub val: Expression,
 }
 
 impl Field {
-    pub fn new(key: Option<Expr>, val: Expr) -> Field {
+    pub fn new(key: Option<Expression>, val: Expression) -> Field {
         Field { key, val }
     }
 }
 
 #[derive(Debug)]
-pub struct ParList {
+pub struct ParameterList {
     pub vargs: bool,
     pub names: Vec<String>,
 }
 
-impl ParList {
-    pub fn new() -> ParList {
-        ParList {
+impl ParameterList {
+    pub fn new() -> ParameterList {
+        ParameterList {
             vargs: false,
             names: Vec::new(),
         }
@@ -104,15 +104,15 @@ impl ParList {
 }
 
 #[derive(Debug)]
-pub struct FuncDef {
-    pub name: Vec<Expr>,
-    pub body: Vec<Expr>,
+pub struct FunctionDefinition {
+    pub name: Vec<Expression>,
+    pub body: Vec<Expression>,
 }
 
-impl FuncDef {
-    pub fn new(name: Expr, body: Expr) -> Box<FuncDef> {
+impl FunctionDefinition {
+    pub fn new(name: Expression, body: Expression) -> Box<FunctionDefinition> {
         // TODO: refactor this
-        Box::new(FuncDef {
+        Box::new(FunctionDefinition {
             name: vec![name],
             body: vec![body],
         })
@@ -120,15 +120,15 @@ impl FuncDef {
 }
 
 #[derive(Debug)]
-pub struct MethodDef {
-    pub receiver: Expr,
+pub struct MethodDefinition {
+    pub receiver: Expression,
     pub method: String,
-    pub body: Expr,
+    pub body: Expression,
 }
 
-impl MethodDef {
-    pub fn new(receiver: Expr, method: String, body: Expr) -> Box<MethodDef> {
-        Box::new(MethodDef {
+impl MethodDefinition {
+    pub fn new(receiver: Expression, method: String, body: Expression) -> Box<MethodDefinition> {
+        Box::new(MethodDefinition {
             receiver,
             method,
             body,
@@ -138,13 +138,13 @@ impl MethodDef {
 
 #[derive(Debug)]
 pub struct MethodCall {
-    pub receiver: Expr,
+    pub receiver: Expression,
     pub method: String,
-    pub args: Vec<Expr>,
+    pub args: Vec<Expression>,
 }
 
 impl MethodCall {
-    pub fn new(receiver: Expr, method: String, args: Vec<Expr>) -> MethodCall {
+    pub fn new(receiver: Expression, method: String, args: Vec<Expression>) -> MethodCall {
         MethodCall {
             receiver,
             method,
@@ -154,15 +154,15 @@ impl MethodCall {
 }
 
 #[derive(Debug)]
-pub struct FuncCall {
-    pub func: Expr,
-    pub args: Vec<Expr>,
+pub struct FunctionCall {
+    pub func: Expression,
+    pub args: Vec<Expression>,
     pub adj: bool,
 }
 
-impl FuncCall {
-    pub fn new(func: Expr, args: Vec<Expr>) -> FuncCall {
-        FuncCall {
+impl FunctionCall {
+    pub fn new(func: Expression, args: Vec<Expression>) -> FunctionCall {
+        FunctionCall {
             func,
             args,
             adj: false,
@@ -172,13 +172,13 @@ impl FuncCall {
 
 #[derive(Debug)]
 pub struct IfThenElse {
-    pub condition: Expr,
-    pub then: Vec<Stmt>,
-    pub els: Vec<Stmt>,
+    pub condition: Expression,
+    pub then: Vec<Statement>,
+    pub els: Vec<Statement>,
 }
 
 impl IfThenElse {
-    pub fn new(condition: Expr, then: Vec<Stmt>, els: Vec<Stmt>) -> IfThenElse {
+    pub fn new(condition: Expression, then: Vec<Statement>, els: Vec<Statement>) -> IfThenElse {
         IfThenElse {
             condition,
             then,
@@ -186,7 +186,7 @@ impl IfThenElse {
         }
     }
 
-    pub fn set_els(&mut self, els: Vec<Stmt>) {
+    pub fn set_els(&mut self, els: Vec<Statement>) {
         self.els = els;
     }
 }
@@ -194,19 +194,19 @@ impl IfThenElse {
 #[derive(Debug)]
 pub struct NumberFor {
     pub name: String,
-    pub init: Expr,
-    pub limit: Expr,
-    pub step: Expr,
-    pub stmts: Vec<Stmt>,
+    pub init: Expression,
+    pub limit: Expression,
+    pub step: Expression,
+    pub stmts: Vec<Statement>,
 }
 
 impl NumberFor {
     pub fn new(
         name: String,
-        init: Expr,
-        limit: Expr,
-        step: Expr,
-        stmts: Vec<Stmt>,
+        init: Expression,
+        limit: Expression,
+        step: Expression,
+        stmts: Vec<Statement>,
     ) -> Box<NumberFor> {
         Box::new(NumberFor {
             name,
@@ -221,12 +221,16 @@ impl NumberFor {
 #[derive(Debug)]
 pub struct GenericFor {
     pub names: Vec<String>,
-    pub exprs: Vec<Expr>,
-    pub stmts: Vec<Stmt>,
+    pub exprs: Vec<Expression>,
+    pub stmts: Vec<Statement>,
 }
 
 impl GenericFor {
-    pub fn new(names: Vec<String>, exprs: Vec<Expr>, stmts: Vec<Stmt>) -> Box<GenericFor> {
+    pub fn new(
+        names: Vec<String>,
+        exprs: Vec<Expression>,
+        stmts: Vec<Statement>,
+    ) -> Box<GenericFor> {
         Box::new(GenericFor {
             names,
             exprs,
@@ -236,26 +240,26 @@ impl GenericFor {
 }
 
 #[derive(Debug)]
-pub enum Stmt {
+pub enum Statement {
     /// Assign(Lhs, Rhs)
-    Assign(Vec<Expr>, Vec<Expr>),
+    Assign(Vec<Expression>, Vec<Expression>),
 
     /// LocalAssign(Names, Exprs)
-    LocalAssign(Vec<String>, Vec<Expr>),
-    FuncCall(Expr),
-    MethodCall(Expr),
-    DoBlock(Vec<Stmt>),
+    LocalAssign(Vec<String>, Vec<Expression>),
+    FuncCall(Expression),
+    MethodCall(Expression),
+    DoBlock(Vec<Statement>),
 
     /// While(Condition, Stmts)
-    While(Expr, Vec<Stmt>),
+    While(Expression, Vec<Statement>),
 
     /// Repeat(Condition, Stmts)
-    Repeat(Expr, Vec<Stmt>),
+    Repeat(Expression, Vec<Statement>),
     If(IfThenElse),
     NumberFor(Box<NumberFor>),
     GenericFor(Box<GenericFor>),
-    FuncDef(Box<FuncDef>),
-    MethodDef(Box<MethodDef>),
-    Return(Vec<Expr>),
+    FuncDef(Box<FunctionDefinition>),
+    MethodDef(Box<MethodDefinition>),
+    Return(Vec<Expression>),
     Break,
 }
