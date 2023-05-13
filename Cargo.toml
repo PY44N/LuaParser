@@ -1,8 +1,7 @@
 [package]
-name = "lua"
+name = "lua_parser"
 version = "0.1.0"
-authors = ["Chris Lonng <chris@lonng.org>"]
-edition = "2018"
+edition = "2021"
 
 [[bin]]
 name = "lua"

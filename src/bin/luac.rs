@@ -1,6 +1,6 @@
-extern crate lua;
+extern crate lua_parser;
 
-use lua::state::State;
+use lua_parser::state::State;
 
 fn main() {
     let mut state = State::new();
