@@ -351,7 +351,6 @@ impl<R: Read> Scanner<R> {
                 }
             }
         }
-        unreachable!()
     }
 
     fn read_string(&mut self) -> Result<Token> {

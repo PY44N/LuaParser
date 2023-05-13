@@ -258,7 +258,6 @@ impl<R: Read> Parser<R> {
 
     fn constructor(&mut self) -> Result<ExprNode> {
         debug_assert!(self.token == Token::Char('{'));
-        let line = self.line_number;
         let mut fields: Vec<Field> = vec![];
         self.next()?;
         while self.token != Token::Char('}') {
@@ -303,7 +302,6 @@ impl<R: Read> Parser<R> {
     }
 
     fn funcbody(&mut self) -> Result<ExprNode> {
-        let line = self.line_number;
         // paramater list
         self.check_next(Token::Char('('))?;
         let mut parlist = ParList::new();
@@ -336,7 +334,6 @@ impl<R: Read> Parser<R> {
     /// prefixexp -> NAME | '(' expr ')'
     /// ```
     fn prefixexp(&mut self) -> Result<ExprNode> {
-        let line = self.line_number;
         let expr = match self.token {
             Token::Ident(ref s) => {
                 let expr = ExprNode::new(Expr::Ident(s.clone()));
@@ -376,7 +373,6 @@ impl<R: Read> Parser<R> {
             }
             Token::Char('{') => vec![self.constructor()?],
             Token::String(ref s) => {
-                let line = self.prev_number;
                 next = true;
                 let expr = ExprNode::new(Expr::String(s.clone()));
                 vec![expr]
@@ -400,14 +396,12 @@ impl<R: Read> Parser<R> {
     /// prefixexp { '.' NAME | '[' exp `]' | ':' NAME funcargs | funcargs }
     /// ```
     fn primaryexp(&mut self) -> Result<ExprNode> {
-        let line = self.line_number;
         let mut exprnode = self.prefixexp()?;
         loop {
             let expr = match self.token {
                 Token::Char('.') => {
                     self.next()?;
                     let obj = if let Token::Ident(ref s) = self.token {
-                        let line = self.line_number;
                         let key = ExprNode::new(Expr::String(s.clone()));
                         let obj = Expr::AttrGet(Box::new(exprnode), Box::new(key));
                         obj
@@ -456,7 +450,6 @@ impl<R: Read> Parser<R> {
     /// constructor | FUNCTION body | primaryexp
     /// ```
     fn simple_expr(&mut self) -> Result<ExprNode> {
-        let lineinfo = (self.line_number, self.line_number);
         let node = match self.token {
             Token::True => ExprNode::new(Expr::True),
             Token::False => ExprNode::new(Expr::False),
@@ -474,11 +467,9 @@ impl<R: Read> Parser<R> {
 
     fn sub_expression(&mut self, limit: u8) -> Result<(ExprNode, BinaryOpr)> {
         let op = unary_op(&self.token);
-        let line = self.line_number;
         let mut expr = if op != UnaryOpr::NoUnary {
             self.next()?;
             let sub = self.sub_expression(UNARY_PRIORITY)?.0;
-            let lineinfo = (line, self.prev_number);
             ExprNode::new(Expr::UnaryOp(op, Box::new(sub)))
         } else {
             self.simple_expr()?
@@ -490,9 +481,7 @@ impl<R: Read> Parser<R> {
                 break;
             }
             self.next()?;
-            let line = self.line_number;
             let sub = self.sub_expression(BINARY_PRIORITY[op as usize].0)?;
-            let lineinfo = (line, self.prev_number);
             expr = ExprNode::new(Expr::BinaryOp(op, Box::new(expr), Box::new(sub.0)));
             op = sub.1;
         }
@@ -517,11 +506,10 @@ impl<R: Read> Parser<R> {
         debug_assert!(self.token == Token::If);
         let line = self.line_number;
         let mut ifthen = self.test_then_block()?;
-        let mut elseifs: Vec<(IfThenElse, (u32, u32))> = vec![];
+        let mut elseifs: Vec<IfThenElse> = vec![];
         while self.token == Token::Elseif {
-            let line = self.line_number;
             let elseif = self.test_then_block()?;
-            elseifs.push((elseif, (line, self.prev_number)));
+            elseifs.push(elseif);
         }
 
         let mut els = if self.testnext(&Token::Else)? {
@@ -534,7 +522,7 @@ impl<R: Read> Parser<R> {
         for elseif in elseifs.into_iter().rev().into_iter() {
             let mut e: Vec<Node<Stmt>> = vec![];
             mem::swap(&mut e, &mut els);
-            let (mut elif, lineinfo) = elseif;
+            let mut elif = elseif;
             elif.set_els(e);
             els.push(StmtNode::new(Stmt::If(elif)));
         }
@@ -568,7 +556,6 @@ impl<R: Read> Parser<R> {
         self.check_next(Token::Char(','))?;
         let limit = self.expression()?;
         // step optional
-        let line = self.line_number;
         let step = if self.testnext(&Token::Char(','))? {
             self.expression()?
         } else {
@@ -634,7 +621,6 @@ impl<R: Read> Parser<R> {
 
     fn funcstat(&mut self) -> Result<Stmt> {
         debug_assert!(self.token == Token::Function);
-        let line = self.line_number;
         self.next()?; // skip FUNCTION
                       // funcname
         let name = if let Token::Ident(ref s) = self.token {
@@ -682,7 +668,6 @@ impl<R: Read> Parser<R> {
     }
 
     fn localfunc(&mut self) -> Result<Stmt> {
-        let _line = self.line_number;
         let name = if let Token::Ident(ref s) = self.token {
             s.clone()
         } else {
