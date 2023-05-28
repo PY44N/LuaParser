@@ -6,9 +6,9 @@ fn main() {
     let mut state = State::new();
     let result = state.parse_file("test.lua");
     match result {
-        Ok((ast, vars)) => {
-            println!("{:?}", ast);
-            println!("{:?}", vars);
+        Ok(res) => {
+            println!("{:?}", res.ast);
+            println!("{:?}", res.locals);
         }
         Err(e) => println!("Error=>{:?}", e),
     };

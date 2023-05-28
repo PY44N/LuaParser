@@ -46,6 +46,12 @@ pub fn binary_op(t: &Token) -> BinaryOperator {
 }
 
 #[derive(Debug)]
+pub struct ParserResult {
+    pub ast: Vec<Statement>,
+    pub locals: Vec<String>,
+}
+
+#[derive(Debug)]
 pub struct Parser<R> {
     source: String,
     scanner: Scanner<R>,
@@ -129,11 +135,14 @@ impl<R: Read> Parser<R> {
     ///
     ///	unop ::= `-´ | not | `#´
     /// ```
-    pub fn parse(&mut self) -> Result<(Vec<Statement>, Vec<String>)> {
+    pub fn parse(&mut self) -> Result<ParserResult> {
         self.next()?;
         let stmts = self.block()?;
         self.check(Token::EOF)?;
-        Ok((stmts, self.locals.clone()))
+        Ok(ParserResult {
+            ast: stmts,
+            locals: self.locals.clone(),
+        })
     }
 
     fn next(&mut self) -> Result<()> {

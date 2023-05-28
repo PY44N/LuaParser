@@ -1,5 +1,5 @@
-use crate::ast::Statement;
 use crate::parser;
+use crate::parser::ParserResult;
 use crate::Result;
 use std::fs::File;
 use std::io::BufReader;
@@ -22,7 +22,7 @@ impl State {
         State {}
     }
 
-    pub fn parse_file(&mut self, path: &str) -> Result<(Vec<Statement>, Vec<String>)> {
+    pub fn parse_file(&mut self, path: &str) -> Result<ParserResult> {
         let f = File::open(path)?;
         let reader = BufReader::new(f);
 
