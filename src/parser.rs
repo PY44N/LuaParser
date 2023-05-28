@@ -53,6 +53,7 @@ pub struct Parser<R> {
     line_number: u32,
     token: Token,
     ahead_token: Token,
+    locals: Vec<String>,
 }
 
 impl<R: Read> Parser<R> {
@@ -64,6 +65,7 @@ impl<R: Read> Parser<R> {
             line_number: 1,
             token: Token::EOF,
             ahead_token: Token::EOF,
+            locals: Vec::new(),
         }
     }
 
@@ -127,11 +129,11 @@ impl<R: Read> Parser<R> {
     ///
     ///	unop ::= `-´ | not | `#´
     /// ```
-    pub fn parse(&mut self) -> Result<Vec<Statement>> {
+    pub fn parse(&mut self) -> Result<(Vec<Statement>, Vec<String>)> {
         self.next()?;
         let stmts = self.block()?;
         self.check(Token::EOF)?;
-        Ok(stmts)
+        Ok((stmts, self.locals.clone()))
     }
 
     fn next(&mut self) -> Result<()> {
@@ -673,6 +675,7 @@ impl<R: Read> Parser<R> {
         };
         self.next()?;
         let body = self.funcbody()?;
+        self.locals.push(name.clone());
         let stmt = Statement::LocalAssign(vec![name], vec![body]);
         Ok(stmt)
     }
@@ -681,13 +684,14 @@ impl<R: Read> Parser<R> {
     /// stat -> LOCAL NAME {`,' NAME} [`=' explist1]
     /// ```
     fn localstat(&mut self) -> Result<Statement> {
-        let namelist = self.namelist()?;
+        let mut namelist = self.namelist()?;
         let exprlist = if self.testnext(&Token::Char('='))? {
             self.exprlist()?
         } else {
             vec![]
         };
-        let stmt = Statement::LocalAssign(namelist, exprlist);
+        let stmt = Statement::LocalAssign(namelist.clone(), exprlist);
+        self.locals.append(&mut namelist);
         Ok(stmt)
     }
 

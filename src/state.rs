@@ -22,7 +22,7 @@ impl State {
         State {}
     }
 
-    pub fn parse_file(&mut self, path: &str) -> Result<Vec<Statement>> {
+    pub fn parse_file(&mut self, path: &str) -> Result<(Vec<Statement>, Vec<String>)> {
         let f = File::open(path)?;
         let reader = BufReader::new(f);
 
