@@ -317,6 +317,9 @@ impl<R: Read> Parser<R> {
         let mut parlist = ParameterList::new();
         if let Token::Ident(_) = self.token {
             let names = self.namelist()?;
+            for name in &names {
+                self.locals.push(name.to_string());
+            }
             parlist.set_names(names);
         }
         if Token::Dots == self.token {

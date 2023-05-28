@@ -1,7 +1,11 @@
-local a = {"Hello", "world"}
+local strings = {"Hello", "world"}
 
-local i = 1
-while i <= #a do
-    print(a[i])
-    i = i + 1
+local function log(str)
+    print(str)
+end
+
+local index = 1
+while index <= #strings do
+    log(strings[index])
+    index = index + 1
 end
